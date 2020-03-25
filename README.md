@@ -8,6 +8,4 @@ Dynamics CRM Solution on **[dist](https://github.com/Akouddane/PcfCustomKanban/t
 * **[PcfCustomKanban for Dynamics CRM](https://github.com/Akouddane/PcfCustomKanban/raw/master/dist/PcfCustomKanban_1_0_0_1_managed.zip)**
 ---
 
-![](https://akouddane.github.io/PcfCustomKanban/images/kanban_demo1.png)
----
-![](https://akouddane.github.io/PcfCustomKanban/images/kanban_demo2.png)
+![](https://akouddane.github.io/PcfCustomKanban/images/demo.gif)

@@ -1,0 +1,31 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<manifest>
+  <control namespace="DemoNamespace" constructor="CustomKanbanControl" version="0.0.184" display-name-key="CustomKanbanControl" description-key="CustomKanbanControl description" control-type="standard">
+    <!-- dataset node represents a set of entity records on CDS; allow more than one datasets -->
+    <data-set name="sampleDataSet" display-name-key="Dataset_Display_Key">
+      <!-- 'property-set' node represents a unique, configurable property that each record in the dataset must provide. -->
+      <!-- UNCOMMENT TO ADD PROPERTY-SET NODE
+      <property-set name="samplePropertySet" display-name-key="Property_Display_Key" description-key="Property_Desc_Key" of-type="SingleLine.Text" usage="bound" required="true" />
+      -->
+    </data-set>
+    <!-- <property name="businessProcessName" display-name-key="Business Process Flow Name" description-key="Schema name of the Business Process Flow" of-type="SingleLine.Text" usage="input" required="false" /> -->
+    <resources>
+      <code path="index.ts" order="1" />
+      <css path="css/CustomKanbanControl.css" order="1" />
+      <img path="ico/progress.gif" />
+      <img path="ico/edit.png" />
+      <img path="ico/more.png" />
+      <img path="ico/error.png" />
+    </resources>
+    <feature-usage>
+      <!-- <uses-feature name="Device.captureAudio" required="true" />
+      <uses-feature name="Device.captureImage" required="true" />
+      <uses-feature name="Device.captureVideo" required="true" />
+      <uses-feature name="Device.getBarcodeValue" required="true" />
+      <uses-feature name="Device.getCurrentPosition" required="true" />
+      <uses-feature name="Device.pickFile" required="true" /> -->
+      <uses-feature name="Utility" required="true" />
+      <uses-feature name="WebAPI" required="true" />
+    </feature-usage>
+  </control>
+</manifest>

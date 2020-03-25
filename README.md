@@ -1,6 +1,6 @@
 ![](https://akouddane.github.io/PcfCustomKanban/images/logo_md.png)
 
-# Create a Dynamics CRM Custom Kanban for view 
+# Create a Kanban view in Dynamics CRM 
 
 Documentation on : https://akouddane.github.io/PcfCustomKanban
 

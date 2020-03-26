@@ -1,6 +1,6 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
 <manifest>
-  <control namespace="DemoNamespace" constructor="CustomKanbanControl" version="0.0.184" display-name-key="CustomKanbanControl" description-key="CustomKanbanControl description" control-type="standard">
+  <control namespace="DemoNamespace" constructor="CustomKanbanControl" version="0.0.190" display-name-key="CustomKanbanControl" description-key="CustomKanbanControl description" control-type="standard">
     <!-- dataset node represents a set of entity records on CDS; allow more than one datasets -->
     <data-set name="sampleDataSet" display-name-key="Dataset_Display_Key">
       <!-- 'property-set' node represents a unique, configurable property that each record in the dataset must provide. -->

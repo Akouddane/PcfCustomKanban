@@ -18,23 +18,29 @@ export class CustomKanbanControl implements ComponentFramework.StandardControl<I
 	private _loader: HTMLDivElement;
 	
 	private _customText: CustomText;
+	private _userCurrency: Currency;
 
 	private dataSet:ComponentFramework.PropertyTypes.DataSet;
 	private allGroups: Array<GroupObject>;
 	private allRecordStages: Array<RecordStageObject>;
+	private allCurrencies: Array<Currency>;
 	private dataList:Array<DataObject>;
 	private allMetadata:Array<OptionSetMeta>;
 	private entityMeta:EntityMeta;
+	private attributesMeta:Array<AttributeMeta>;
 	private editedRecordId: string;
 	private dataLoaded: boolean;
 	private stagesLoaded: boolean;
+	private currenciesLoaded: boolean;
 	private entitiesLoaded: boolean;
+	private attributesMetadataLoaded: boolean;
 	private metadataLoaded: boolean;
 	private metadata1Loaded: boolean;
 	private metadata2Loaded: boolean;
 	private metadata3Loaded: boolean;
 	private metadata4Loaded: boolean;
 
+	private _sysColumns: Array<string>;
 
 	/*
 	*	Events
@@ -61,6 +67,8 @@ export class CustomKanbanControl implements ComponentFramework.StandardControl<I
 		this.dataLoaded = false;
 		this.stagesLoaded = false;
 		this.entitiesLoaded = false;
+		this.currenciesLoaded = false;
+		this.attributesMetadataLoaded = false;
 		this.metadataLoaded = false;
 		this.metadata1Loaded = false;
 		this.metadata2Loaded = false;
@@ -83,6 +91,7 @@ export class CustomKanbanControl implements ComponentFramework.StandardControl<I
 		this._viewId = context.parameters.sampleDataSet.getViewId();
 
 		var language = context.userSettings.languageId;
+		
 		//var cultureName = context.userSettings.for;
 
 		this._context = context;
@@ -110,28 +119,99 @@ export class CustomKanbanControl implements ComponentFramework.StandardControl<I
 				self._config = data;
 
 				var allColumns = context.parameters.sampleDataSet.columns.map(a => a.name); 
-				if(allColumns.indexOf(data.amountAttribute) == -1) {
-					self.showError("Amount column is not defined in view (" + data.amountAttribute + ")");
-					return;
-				}
-				if(allColumns.indexOf(data.nameAttribute) == -1) {
-					self.showError("Name column is not defined in view (" + data.nameAttribute + ")");
-					return;
-				}
-				if(data.groupType == GroupType.Entity && allColumns.indexOf(data.entityAttribute) == -1) {
-					self.showError("Entity Attribute column is not defined in view (" + data.entityAttribute + ")");
-					return;
-				}
+				// if(allColumns.indexOf(data.amountAttribute) == -1) {
+				// 	self.showError("Amount column is not defined in view (" + data.amountAttribute + ")");
+				// 	return;
+				// }
+				// if(allColumns.indexOf(data.nameAttribute) == -1) {
+				// 	self.showError("Name column is not defined in view (" + data.nameAttribute + ")");
+				// 	return;
+				// }
+				// if(data.groupType == GroupType.Entity && allColumns.indexOf(data.entityAttribute) == -1) {
+				// 	self.showError("Entity Attribute column is not defined in view (" + data.entityAttribute + ")");
+				// 	return;
+				// }
+				
+				// if(data.groupType == GroupType.Picklist && allColumns.indexOf(data.picklistAttribute) == -1) {
+				// 	self.showError("Picklist Attribute column is not defined in view (" + data.picklistAttribute + ")");
+				// 	return;
+				// }
+
 				if(data.groupType == GroupType.Picklist && data.picklistAttribute == "statecode") {
-					self.showError("Statecode is not supported for Picklist Attribute");
-					return;
-				}
-				if(data.groupType == GroupType.Picklist && allColumns.indexOf(data.picklistAttribute) == -1) {
-					self.showError("Picklist Attribute column is not defined in view (" + data.picklistAttribute + ")");
+					self.showError("StateCode is not supported for Picklist Attribute, please use StatusCode instead");
 					return;
 				}
 
+				self._sysColumns = [];
+
+				var refresh = false;
+				if(allColumns.indexOf(data.amountAttribute) == -1) {
+					if(self._context.parameters.sampleDataSet.addColumn){
+						self._context.parameters.sampleDataSet.addColumn(data.amountAttribute);
+						refresh = true;
+					}else{
+						self.showError("Amount column is not defined in view (" + data.amountAttribute + ")");
+						return;
+					}
+				}
+				if(allColumns.indexOf("transactioncurrencyid") == -1) {
+					if(self._context.parameters.sampleDataSet.addColumn){
+						self._context.parameters.sampleDataSet.addColumn("transactioncurrencyid");
+						self._sysColumns.push("transactioncurrencyid");
+						refresh = true;
+					}else{
+						self.showError("TransactionCurrencyId column is not defined in view");
+						return;
+					}
+				}
 				
+				if(allColumns.indexOf(data.nameAttribute) == -1) {
+					if(self._context.parameters.sampleDataSet.addColumn){
+						self._context.parameters.sampleDataSet.addColumn(data.nameAttribute);
+						refresh = true;
+					}else{
+						self.showError("Name column is not defined in view (" + data.nameAttribute + ")");
+						return;
+					}
+				}
+				if(data.groupType == GroupType.Entity && allColumns.indexOf(data.entityAttribute) == -1) {
+					if(self._context.parameters.sampleDataSet.addColumn){
+						self._context.parameters.sampleDataSet.addColumn(data.entityAttribute);
+						self._sysColumns.push(data.entityAttribute);
+
+						refresh = true;
+					}else{
+						self.showError("Entity Attribute column is not defined in view (" + data.entityAttribute + ")");
+						return;
+					}
+				}
+				
+				if(data.groupType == GroupType.Picklist && allColumns.indexOf(data.picklistAttribute) == -1) {
+					if(self._context.parameters.sampleDataSet.addColumn){
+						self._context.parameters.sampleDataSet.addColumn(data.picklistAttribute);
+						self._sysColumns.push(data.picklistAttribute);
+						refresh = true;
+					}else{
+						self.showError("Picklist Attribute column is not defined in view (" + data.picklistAttribute + ")");
+						return;
+					}
+				}
+
+				
+				if(refresh){
+					self._context.parameters.sampleDataSet.refresh();
+				}
+
+				
+				self.getCurrencies(context, function(ok: boolean, data: Array<Currency>, error:string){
+					if(ok){
+						self.allCurrencies = data;
+						self.currenciesLoaded = true;
+						self.createLayout();
+					}else{
+						debugger;
+					}
+				});
 
 				if(self._config.groupType == GroupType.BPF){
 					self.getProcessInfos(context, function(infosOk: boolean, infosData:Array<string>, error:any){
@@ -156,6 +236,8 @@ export class CustomKanbanControl implements ComponentFramework.StandardControl<I
 							self.entitiesLoaded = true;
 							self.allGroups = data;
 							self.createLayout();
+						}else{
+							debugger;
 						}
 					});
 				}
@@ -165,14 +247,28 @@ export class CustomKanbanControl implements ComponentFramework.StandardControl<I
 						self.entityMeta = data;
 						self.metadataLoaded = true;
 						self.createLayout();
+					}else{
+						debugger;
 					}
 				});
+				self.getEntityAttributesMeta(self._entity, context, function(ok:boolean, data: Array<AttributeMeta>, error:string){
+					if(ok){
+						self.attributesMeta = data;
+						self.attributesMetadataLoaded = true;
+						self.createLayout();
+					}else{
+						debugger;
+					}
+				});
+				
 				self.allMetadata = [];
 				self.getEntityOptions("Picklist", context, function(ok:boolean, data:Array<OptionSetMeta>, error:string){
 					if(ok){
 						self.allMetadata = self.allMetadata.concat(data);
 						self.metadata1Loaded = true;
 						self.createLayout();
+					}else{
+						debugger;
 					}
 				});
 				self.getEntityOptions("State", context, function(ok:boolean, data:Array<OptionSetMeta>, error:string){
@@ -180,6 +276,8 @@ export class CustomKanbanControl implements ComponentFramework.StandardControl<I
 						self.allMetadata = self.allMetadata.concat(data);
 						self.metadata2Loaded = true;
 						self.createLayout();
+					}else{
+						debugger;
 					}
 				});
 				self.getEntityOptions("Status", context, function(ok:boolean, data:Array<OptionSetMeta>, error:string){
@@ -187,6 +285,8 @@ export class CustomKanbanControl implements ComponentFramework.StandardControl<I
 						self.allMetadata = self.allMetadata.concat(data);
 						self.metadata3Loaded = true;
 						self.createLayout();
+					}else{
+						debugger;
 					}
 				});
 				self.getEntityOptions("Boolean", context, function(ok:boolean, data:Array<OptionSetMeta>, error:string){
@@ -194,6 +294,8 @@ export class CustomKanbanControl implements ComponentFramework.StandardControl<I
 						self.allMetadata = self.allMetadata.concat(data);
 						self.metadata4Loaded = true;
 						self.createLayout();
+					}else{
+						debugger;
 					}
 				});
 			}else{
@@ -384,7 +486,7 @@ export class CustomKanbanControl implements ComponentFramework.StandardControl<I
 	
 	private getConfig(context: ComponentFramework.Context<IInputs>, callback: Function){
 		var entity = "dem_customkanbanconfig";
-		var options = "?$select=dem_amountattribute,dem_entityicon,dem_showemptygroup,dem_maxlines,dem_picklistattribute,dem_entityattribute,dem_entitylogicalname,dem_entityfetchxml,dem_entityidattribute,dem_entitynameattribute,dem_bpfrecordattribute,dem_sectionminwidth,dem_colorfullsections,dem_groupbytype,dem_bpfentity,_dem_businessprocessflowid_value,dem_colorslist,dem_editableattributes,dem_nameattribute,dem_showamount,dem_viewid&$filter=dem_viewid eq '" + this._viewId + "'";
+		var options = "?$select=dem_amountattribute,dem_entityicon,dem_showemptygroup,dem_maxlines,dem_picklistattribute,dem_entityattribute,dem_entitylogicalname,dem_entityfetchxml,dem_entityidattribute,dem_entitynameattribute,dem_bpfrecordattribute,dem_sectionminwidth,dem_colorfullsections,dem_groupbytype,dem_bpfentity,_dem_amountcurrency_value,_dem_businessprocessflowid_value,dem_colorslist,dem_editableattributes,dem_nameattribute,dem_showamount,dem_viewid&$filter=dem_viewid eq '" + this._viewId + "'";
 		var self = this;
 		context.webAPI.retrieveMultipleRecords(entity, options).then(
 			function(response:ComponentFramework.WebApi.RetrieveMultipleResponse){
@@ -411,6 +513,7 @@ export class CustomKanbanControl implements ComponentFramework.StandardControl<I
 					var maxLines = entities[0]["dem_maxlines"] ?? 10;
 					var showEmptyGroup = !!entities[0]["dem_showemptygroup"];
 					var entityIcon = entities[0]["dem_entityicon"];
+					var currency = entities[0]["_dem_amountcurrency_value"];
 					
 					conf = {
 						amountAttribute: amountattribute,
@@ -432,11 +535,13 @@ export class CustomKanbanControl implements ComponentFramework.StandardControl<I
 						entityNameAttribute: entityNameAttribute,
 						maxRecords: maxLines,
 						ShowEmptyGroup: showEmptyGroup,
-						EntityIcon: entityIcon
+						EntityIcon: entityIcon,
+						currencyId: currency
 					}
 
 
 					if(!amountattribute) callback(false, conf, "Amount Attribute is not defined in configuration");
+					if(!currency) callback(false, conf, "Currency is not defined in configuration");
 					else if(!nameattribute) callback(false, conf, "Name Attribute is not defined in configuration");
 					else if(!groupbytype) callback(false, conf, "GroupBy Type is not defined in configuration");
 					else if(groupbytype == GroupType.BPF && !processid) callback(false, conf, "BPF id is not defined in configuration");
@@ -488,6 +593,49 @@ export class CustomKanbanControl implements ComponentFramework.StandardControl<I
 					metadata = {
 						LogicalName: type,
 						LogicalCollectionName: data.LogicalCollectionName
+					}
+					
+					callback(true, metadata);
+				} else {
+					var error = JSON.parse(req.response).error;
+					callback(false, undefined, error);
+				}
+			}
+		};
+		req.send();
+	}
+	private getEntityAttributesMeta(type:string, context: ComponentFramework.Context<IInputs>, callback:Function):void{
+		//@ts-ignore
+		var serverUrl = Xrm.Page.context.getClientUrl();
+		//@ts-ignore
+		var version:string = Xrm.Page.context.getVersion();
+		var v = version.split(".");
+		var apiVersion = [v[0],v[1]].join(".");
+
+		var request = serverUrl + "/api/data/v" + apiVersion + "/EntityDefinitions(LogicalName='" + this._entity + "')/Attributes?$select=LogicalName,AttributeType";
+	
+		var self = this;
+		let req = new XMLHttpRequest();
+		req.open("GET", request, true);
+		req.setRequestHeader("Accept", "application/json");
+		req.setRequestHeader("Content-Type", "application/json; charset=utf-8");
+		req.setRequestHeader("OData-MaxVersion", "4.0");
+		req.setRequestHeader("OData-Version", "4.0");
+		req.onreadystatechange = () => {
+			if (req.readyState == 4 /* complete */) {
+				req.onreadystatechange = null; /* avoid potential memory leak issues.*/
+
+				if (req.status == 200) {
+					var data = JSON.parse(req.response).value as Array<any>;
+					var metadata: Array<AttributeMeta>;
+					metadata = [];
+
+					for(var i = 0; i < data.length; i++){
+						metadata.push({
+							//
+							LogicalName: data[i].LogicalName,
+							Type: data[i].AttributeType
+						})
 					}
 					
 					callback(true, metadata);
@@ -696,10 +844,33 @@ export class CustomKanbanControl implements ComponentFramework.StandardControl<I
 		};
 		req.send();
 	}
+	private getCurrencies(context: ComponentFramework.Context<IInputs>, callback:Function):void{
+		var entity = "transactioncurrency";
+		var options = "?$select=transactioncurrencyid,exchangerate,currencysymbol";
+		context.webAPI.retrieveMultipleRecords(entity, options).then(
+			function(response:ComponentFramework.WebApi.RetrieveMultipleResponse){
+				var entities = response.entities;
+				var s:Currency;
+				var currencies = [];
+				for (var i = 0; i < entities.length; i++) {
+					s = {
+						id: entities[i].transactioncurrencyid,
+						rate: entities[i].exchangerate,
+						symbol: entities[i].currencysymbol,
+					};
+					currencies.push(s);
+				}
 
+				callback(true, currencies);
+			},
+			function(errorResponse:any){
+				debugger;
+				callback(false, [], errorResponse);
+			});
+	}
 
 	private createLayout(){
-		if(this.dataLoaded && this.metadataLoaded && this.metadata1Loaded && this.metadata2Loaded && this.metadata3Loaded && this.metadata4Loaded){
+		if(this.dataLoaded && this.currenciesLoaded && this.metadataLoaded && this.attributesMetadataLoaded && this.metadata1Loaded && this.metadata2Loaded && this.metadata3Loaded && this.metadata4Loaded){
 			
 			if(this._config.groupType == GroupType.BPF && !this.stagesLoaded) return;
 			if(this._config.groupType == GroupType.Entity && !this.entitiesLoaded) return;
@@ -748,6 +919,9 @@ export class CustomKanbanControl implements ComponentFramework.StandardControl<I
 
 			self.dataList = [];
 
+			var fCurr = self.allCurrencies.filter(a => a.id == self._config.currencyId);
+			self._userCurrency = fCurr[0];
+
 			var data:DataObject;
 			self.dataSet.sortedRecordIds.forEach((recordId: string) => {
 				let currentRecord = self.dataSet.records[recordId];
@@ -771,10 +945,22 @@ export class CustomKanbanControl implements ComponentFramework.StandardControl<I
 					groupid = val ? val.id.guid.toString() : "";
 				}
 
+				var amount = amountColumn ? (currentRecord.getValue(amountColumn.name) as number ?? 0) : 0;
+				if(amount > 0){
+					//@ts-ignore
+					var currencyId = (currentRecord.getValue("transactioncurrencyid") ? currentRecord.getValue("transactioncurrencyid").id.guid : "");
+					var currency = self.allCurrencies.filter(a => a.id == currencyId);
+					if(currency.length > 0){
+						var temp = (amount / currency[0].rate)*self._userCurrency.rate;
+						amount = temp;
+					}
+				}
+
+
 				data = {
 					id: currentRecord.getRecordId(),
 					name: nameColumn ? (currentRecord.getFormattedValue(nameColumn.name) ?? "") : "",
-					amount: amountColumn ? (currentRecord.getValue(amountColumn.name) as number ?? 0) : 0,
+					amount: amount,
 					groupid: groupid ?? "",
 					columns: self.dataSet.columns,
 					entity: currentRecord,
@@ -860,7 +1046,7 @@ export class CustomKanbanControl implements ComponentFramework.StandardControl<I
 				var tr = document.createElement("tr");
 				var td1 = document.createElement("td");
 				td1.setAttribute("style", "width:50%; text-align: left");
-				td1.innerText = self.formatNumber(sum) + " €";
+				td1.innerText = self.formatNumber(sum) + " " + self._userCurrency.symbol;
 				
 				var td2 = document.createElement("td");
 				td2.setAttribute("style", "width:50%; text-align: right");
@@ -952,6 +1138,8 @@ export class CustomKanbanControl implements ComponentFramework.StandardControl<I
 			if(col.name == this._config.picklistAttribute) skip = true;
 			if(col.name == this._config.entityAttribute) skip = true;
 
+			if(this._sysColumns.indexOf(col.name) > -1) skip = true;
+
 			if(!skip){
 				var tr = document.createElement("tr");
 				var td1 = document.createElement("td");
@@ -992,10 +1180,14 @@ export class CustomKanbanControl implements ComponentFramework.StandardControl<I
 			var value = entity.getValue(column.name);
 			var formattedValue = entity.getFormattedValue(column.name);
 	
-			switch(column.dataType){
-				case "Lookup.Simple":
-				case "Lookup.Owner":
-				case "Lookup.Customer":
+			var filtered = this.attributesMeta.filter(a => a.LogicalName == column.name);
+			var dataType = "";
+			if(filtered.length > 0) dataType = filtered[0].Type;
+
+			switch(dataType){
+				case "Lookup":
+				case "Owner":
+				case "Customer":
 					if(value){
 						var d1 = document.createElement("div");
 						d1.setAttribute("class", "elementValueLookupPrefix");
@@ -1037,7 +1229,7 @@ export class CustomKanbanControl implements ComponentFramework.StandardControl<I
 			if(t.length > 1){
 				return t[0][0].toUpperCase() + t[1][0].toUpperCase();
 			}else if(text.length >1){
-				return text[0] + text[1].toUpperCase();
+				return text[0].toUpperCase() + text[1].toUpperCase();
 			}else if(text.length > 0)
 				return text[0].toUpperCase();
 		}
@@ -1047,32 +1239,21 @@ export class CustomKanbanControl implements ComponentFramework.StandardControl<I
 		try{
 			var value = entity.getValue(column.name) ?? "";
 
-			if(column.dataType == ""){
-				var f = this.allMetadata.filter(a => a.logicalname == column.name);
-				if(f.length > 0) column.dataType = f[0].type;
-			}
+			var filtered = this.attributesMeta.filter(a => a.LogicalName == column.name);
+			var dataType = "";
+			if(filtered.length > 0) dataType = filtered[0].Type;
 
-			if(column.dataType.indexOf("SingleLine") > -1){
+			if(dataType == "String" || dataType == "Memo"){
 				var e1 = document.createElement("input");
 				e1.setAttribute("class", "elementValueEditor");
 				e1.setAttribute("type", "text");
 				e1.value = value.toString();
 				e1.setAttribute("currvalue", value.toString());
 				e1.setAttribute("attribute", column.name);
-				e1.setAttribute("datatype", column.dataType);
+				e1.setAttribute("datatype", dataType);
 				return e1;
 			}
-			if(column.dataType.indexOf("Multiple") > -1){
-				var e2 = document.createElement("input");
-				e2.setAttribute("class", "elementValueEditor");
-				e2.setAttribute("type", "text");
-				e2.value = value.toString();
-				e2.setAttribute("currvalue", value.toString());			
-				e2.setAttribute("attribute", column.name);
-				e2.setAttribute("datatype", column.dataType);
-				return e2;
-			}
-			if(column.dataType.indexOf("OptionSet") > -1 || column.dataType == "Picklist"  || column.dataType == "State"  || column.dataType == "Status"){
+			else if(dataType == "Picklist"  || dataType == "State"  || dataType == "Status"){
 				var meta = this.allMetadata.filter(a => a.logicalname == column.name);
 				if(meta.length > 0){
 					var e3 = document.createElement("select");
@@ -1085,11 +1266,11 @@ export class CustomKanbanControl implements ComponentFramework.StandardControl<I
 					e3.value = value.toString();
 					e3.setAttribute("currvalue", value.toString());		
 					e3.setAttribute("attribute", column.name);
-					e3.setAttribute("datatype", column.dataType);
+					e3.setAttribute("datatype", dataType);
 					return e3;				
 				}
 			}
-			if(column.dataType.indexOf("TwoOptions") > -1  || column.dataType == "Boolean"){
+			else if(dataType == "Boolean"){
 				var meta = this.allMetadata.filter(a => a.logicalname == column.name);
 				if(meta.length > 0){
 					var e4 = document.createElement("select");
@@ -1102,12 +1283,12 @@ export class CustomKanbanControl implements ComponentFramework.StandardControl<I
 					e4.value = value.toString();
 					e4.setAttribute("currvalue", value.toString());						
 					e4.setAttribute("attribute", column.name);
-					e4.setAttribute("datatype", column.dataType);
+					e4.setAttribute("datatype", dataType);
 					return e4;
 				}
 			}
 
-			if(column.dataType.indexOf("Whole.None") > -1){
+			else if(dataType == "Integer"){
 				var e5 = document.createElement("input");
 				e5.setAttribute("class", "elementValueEditor");
 				e5.setAttribute("type", "number");
@@ -1118,7 +1299,7 @@ export class CustomKanbanControl implements ComponentFramework.StandardControl<I
 				e5.setAttribute("datatype", column.dataType);
 				return e5;
 			}
-			if(column.dataType.indexOf("Decimal") > -1 || column.dataType.indexOf("Currency") > -1){
+			else if(dataType == "Decimal" || dataType == "Money"){
 				var e6 = document.createElement("input");
 				e6.setAttribute("class", "elementValueEditor");
 				e6.setAttribute("type", "number");
@@ -1126,33 +1307,34 @@ export class CustomKanbanControl implements ComponentFramework.StandardControl<I
 				e6.value = value.toString();
 				e6.setAttribute("currvalue", value.toString());			
 				e6.setAttribute("attribute", column.name);
-				e6.setAttribute("datatype", column.dataType);
+				e6.setAttribute("datatype", dataType);
 				return e6;
 			}
+			else if(dataType == "DateTime"){
+				if(column.dataType && column.dataType.indexOf("DateAndTime.DateAndTime") > -1){
+					var e7 = document.createElement("input");
+					e7.setAttribute("class", "elementValueEditor");
+					e7.setAttribute("type", "datetime-local");
+					e7.setAttribute("step", "1");
+					e7.value = value.toString().replace(".000Z", "");
+					e7.setAttribute("currvalue", value.toString().replace(".000Z", ""));			
+					e7.setAttribute("attribute", column.name);
+					e7.setAttribute("datatype", dataType);
+					return e7;
+				}else{
+					var e7 = document.createElement("input");
+					e7.setAttribute("class", "elementValueEditor");
+					e7.setAttribute("type", "date");
+					e7.setAttribute("step", "1");
+					e7.value = value.toString().replace(".000Z", "");
+					e7.setAttribute("currvalue", value.toString().replace(".000Z", ""));			
+					e7.setAttribute("attribute", column.name);
+					e7.setAttribute("datatype", dataType);
+					return e7;
+				}
+			}
 			
-
-			if(column.dataType.indexOf("DateAndTime.DateOnly") > -1){
-				var e7 = document.createElement("input");
-				e7.setAttribute("class", "elementValueEditor");
-				e7.setAttribute("type", "date");
-				e7.setAttribute("step", "1");
-				e7.value = value.toString().replace(".000Z", "");
-				e7.setAttribute("currvalue", value.toString().replace(".000Z", ""));			
-				e7.setAttribute("attribute", column.name);
-				e7.setAttribute("datatype", column.dataType);
-				return e7;
-			}
-			if(column.dataType.indexOf("DateAndTime.DateAndTime") > -1){
-				var e7 = document.createElement("input");
-				e7.setAttribute("class", "elementValueEditor");
-				e7.setAttribute("type", "datetime-local");
-				e7.setAttribute("step", "1");
-				e7.value = value.toString().replace(".000Z", "");
-				e7.setAttribute("currvalue", value.toString().replace(".000Z", ""));			
-				e7.setAttribute("attribute", column.name);
-				e7.setAttribute("datatype", column.dataType);
-				return e7;
-			}
+			debugger;
 			return document.createElement("div");
 		}
 		catch(exc){
@@ -1262,52 +1444,37 @@ export class CustomKanbanControl implements ComponentFramework.StandardControl<I
 		var input = null;
 		var value = null;
 		switch(type){
-			case "DateAndTime.DateAndTime":
+			case "DateTime":
 				input = (element as HTMLInputElement);
 				value = input.validity.badInput ? null : input.value;
 				//@ts-ignore
 				obj[attribute] = value ? value : null;
 				break;
-			case "DateAndTime.DateOnly":
-				input = (element as HTMLInputElement);
-				value = input.validity.badInput ? null : input.value;
-				//@ts-ignore
-				obj[attribute] = value ? value : null;
-				break;
-			case "Currency":
+			case "Money":
 			case "Decimal":
 				input = (element as HTMLInputElement);
 				value = input.validity.badInput ? null : input.value;
 				//@ts-ignore
 				obj[attribute] = value ? parseFloat(value) : null;
 				break;
-			case "Whole.None":
+			case "Integer":
 			case "State":
 			case "Status":
-			case "OptionSet":
+			case "Picklist":
 				input = (element as HTMLInputElement);
 				value = input.validity.badInput ? null : input.value;
 				//@ts-ignore
 				obj[attribute] = value ? parseInt(value) : null;
 				break;
-			case "TwoOptions":
+			case "Boolean":
 				input = (element as HTMLSelectElement);
 				value = input.validity.badInput ? null : input.value;
 				//@ts-ignore
 				obj[attribute] = (value == "1" ? true : (value == "0" ? false : null));
 				break;
-			// case "Multiple":
-			// 	input = (element as HTMLInputElement);
-			// 	value = input.validity.badInput ? null : input.value;
-			// 	//@ts-ignore
-			// 	obj[attribute] = value ? value : null;;
-			// 	break;			
-			case "SingleLine.Email":
-			case "SingleLine.Phone":
-			case "SingleLine.Text":
-			case "SingleLine.TextArea":
-			case "SingleLine.Ticker":
-			case "SingleLine.URL":
+						
+			case "String":
+			case "Memo":
 				input = (element as HTMLSelectElement);
 				value = input.validity.badInput ? null : input.value;
 				//@ts-ignore
@@ -1434,6 +1601,7 @@ interface ConfigObject{
 	amountAttribute: string, 
 	nameAttribute: string,
 	showAmount: boolean,
+	currencyId: string,
 	editableAttributes: Array<string>,
 	colorsList: Array<string>,
 	colorfullsections: boolean,
@@ -1475,6 +1643,10 @@ interface EntityMeta{
 	LogicalName: string,
 	LogicalCollectionName: string
 }
+interface AttributeMeta{
+	LogicalName: string,
+	Type: string
+}
 interface OptionSetMeta{
 	logicalname: string,
 	type: string,
@@ -1489,4 +1661,9 @@ interface CustomText{
 	Save: string,
 	More: string,
 	Empty: string
+}
+interface Currency{
+	id: string,
+	rate: number,
+	symbol: string
 }
